@@ -53,8 +53,8 @@
 
     #selection {
 	    position : fixed;
-	    top      : 0px;
-	    left     : 0px;
+	    bottom   : 0px;
+	    left     : 150px;
     }
 
     #network-popUp, #edge_edit {
@@ -70,31 +70,35 @@
 	    padding          : 10px;
 	    text-align       : center;
     }
-	#t{
-		position: fixed;
-		bottom: 10px;
-		right:100px;
-		z-index: 2;
-	}
-	#json{
-		position: fixed;
-		right: 0;
-		top: 0;
-		bottom: 100px;
-		left: 100%;
-		z-index: 2;
-	}
-    #json.show{
-	    left:0;
+
+    #t {
+	    position : fixed;
+	    bottom   : 10px;
+	    right    : 100px;
+	    z-index  : 2;
     }
-	#json textarea{
-		position: absolute;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		left: 0;
-		width: 100%;
-	}
+
+    #json {
+	    position : fixed;
+	    right    : 0;
+	    top      : 0;
+	    bottom   : 100px;
+	    left     : 100%;
+	    z-index  : 2;
+    }
+
+    #json.show {
+	    left : 0;
+    }
+
+    #json textarea {
+	    position : absolute;
+	    top      : 0;
+	    right    : 0;
+	    bottom   : 0;
+	    left     : 0;
+	    width    : 100%;
+    }
   </style>
 	<script>
 		$(document).ready(function () {
@@ -137,31 +141,31 @@
 					alert(err);
 				}
 			});
-			$('.window').click(function(){
+			$('.window').click(function () {
 				var json_div = $('#json');
-				if(json_div.hasClass('show')){
+				if (json_div.hasClass('show')) {
 					json_div.removeClass('show');
-				}else{
+				} else {
 					json_div.addClass('show');
 				}
 			});
-			$('.upload').click(function() {
-				try{
+			$('.upload').click(function () {
+				try {
 					var json = JSON.parse($('#json').find('textarea').text());
 					nodes.update(json.nodes);
 					edges.update(json.edges);
-				}catch (error){
+				} catch (error) {
 					console.log('error');
 				}
 			});
-			$('.download').click(function() {
-				try{
+			$('.download').click(function () {
+				try {
 					json = {};
 					var json_div = $('#json').find('textarea');
-					json.nodes=nodes.get();
-					json.edges=edges.get();
+					json.nodes = nodes.get();
+					json.edges = edges.get();
 					json_div.text(JSON.stringify(json))
-				}catch (error){
+				} catch (error) {
 					console.log('error');
 				}
 
