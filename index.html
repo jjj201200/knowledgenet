@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>Knowledge Net</title>
+	<script type="text/javascript" src="js/jquery-1.10.2.js"></script>
+	<script type="text/javascript" src="js/vis.js"></script>
+	<link href="css/vis.css" rel="stylesheet" type="text/css" />
+	<style type="text/css">
+    html, body {
+	    font     : 11pt arial;
+	    margin   : 0;
+	    padding  : 0;
+	    overflow : hidden;
+    }
+
+    h1 {
+	    font-size : 150%;
+	    margin    : 5px 0;
+    }
+
+    h2 {
+	    font-size : 100%;
+	    margin    : 5px 0;
+    }
+
+    table.view {
+	    width : 100%;
+    }
+
+    table td {
+	    vertical-align : top;
+    }
+
+    table table {
+	    background-color : #f5f5f5;
+	    border           : 1px solid #e5e5e5;
+    }
+
+    table table td {
+	    vertical-align : middle;
+    }
+
+    input[type=text], pre {
+	    border : 1px solid lightgray;
+    }
+
+    pre {
+	    margin    : 0;
+	    padding   : 5px;
+	    font-size : 10pt;
+    }
+
+    #selection {
+	    position : fixed;
+	    top      : 0px;
+	    left     : 0px;
+    }
+
+    #network-popUp, #edge_edit {
+	    display          : none;
+	    position         : absolute;
+	    top              : 350px;
+	    left             : 170px;
+	    z-index          : 299;
+	    width            : 250px;
+	    height           : 120px;
+	    background-color : #f9f9f9;
+	    border           : 3px solid #5394ED;
+	    padding          : 10px;
+	    text-align       : center;
+    }
+	#t{
+		position: fixed;
+		bottom: 10px;
+		right:100px;
+		z-index: 2;
+	}
+	#json{
+		position: fixed;
+		right: 0;
+		top: 0;
+		bottom: 100px;
+		left: 100%;
+		z-index: 2;
+	}
+    #json.show{
+	    left:0;
+    }
+	#json textarea{
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		width: 100%;
+	}
+  </style>
+	<script>
+		$(document).ready(function () {
+			// attach actions to the edge buttons
+			$('#edge-add').click(function () {
+				try {
+					edges.add({
+						id   : edges_counter,
+						from : $('#edge-from').val(),
+						to   : $('#edge-to').val(),
+						label: $('#edge-label').val(),
+						title: "ID:" + edges_counter
+					});
+					++edges_counter;
+				}
+				catch (err) {
+					++edges_counter;
+					$('#edge-add').click();
+				}
+			});
+			$('#edge-update').click(function () {
+				try {
+					edges.update({
+						id  : edges_counter,
+						from: $('#edge-from').val(),
+						to  : $('#edge-to').val()
+					});
+					++edges_counter;
+				}
+				catch (err) {
+					alert(err);
+				}
+			});
+			$('#edge-remove').click(function () {
+				try {
+					var id = $('#edge-id').val();
+					edges.remove(id);
+				}
+				catch (err) {
+					alert(err);
+				}
+			});
+			$('.window').click(function(){
+				var json_div = $('#json');
+				if(json_div.hasClass('show')){
+					json_div.removeClass('show');
+				}else{
+					json_div.addClass('show');
+				}
+			});
+			$('.upload').click(function() {
+				try{
+					var json = JSON.parse($('#json').find('textarea').text());
+					nodes.update(json.nodes);
+					edges.update(json.edges);
+				}catch (error){
+					console.log('error');
+				}
+			});
+			$('.download').click(function() {
+				try{
+					json = {};
+					var json_div = $('#json').find('textarea');
+					json.nodes=nodes.get();
+					json.edges=edges.get();
+					json_div.text(JSON.stringify(json))
+				}catch (error){
+					console.log('error');
+				}
+
+			});
+		});
+	</script>
+</head>
+<body>
+	<div id="network-popUp" style="display: none;">
+		<span id="operation">Add Node</span>
+		<br>
+		<table style="margin:auto;">
+			<tbody>
+			<tr>
+				<td>label</td>
+				<td>
+					<input id="node-label" value="">
+				</td>
+			</tr>
+			<tr>
+				<td>title</td>
+				<td>
+					<input id="node-title" value="">
+				</td>
+			</tr>
+			</tbody>
+		</table>
+		<input type="button" value="save" id="saveNodeButton">
+		<input type="button" value="cancel" id="cancelNodeButton">
+	</div>
+	<div id="edge_edit" style="display: none;">
+		<span id="edge_operation">Add Node</span>
+		<br>
+		<table style="margin:auto;">
+			<tbody>
+		        <tr>
+		          <td><label for="edge-label">Label</label></td>
+		          <td><input id="edge-label" type="text" value=""></td>
+		        </tr>
+		        <tr>
+		          <td><label for="edge-title">Title</label></td>
+		          <td><input id="edge-title" type="text" value=""></td>
+		        </tr>
+			</tbody>
+		</table>
+		<input type="button" value="save" id="saveEdgeButton">
+		<input type="button" value="cancel" id="cancelEdgeButton">
+	</div>
+	<p id="selection"></p>
+	<div id="json">
+		<textarea></textarea>
+	</div>
+	<div id="t">
+		<button class="window">Window</button>
+		<button class="upload">Upload</button>
+		<button class="download">Download</button>
+	</div>
+	<div id="mynetwork">
+	</div>
+	<script type="text/javascript">
+	  // create an array with nodes
+	  var nodes = new vis.DataSet();
+
+
+	  // create an array with edges
+	  var edges = new vis.DataSet();
+
+	  // create a network
+	  var container = document.getElementById('mynetwork');
+	  var data = {
+		  nodes: nodes,
+		  edges: edges
+	  };
+	  var options = {
+		  nodes           : {
+			  shape: 'dot'
+		  },
+		  stabilize       : false,
+		  navigation      : true,
+		  keyboard        : true,
+		  dataManipulation: true,
+		  onAdd           : function (data, callback) {
+			  var span = document.getElementById('operation');
+			  var labelInput = document.getElementById('node-label');
+			  var saveButton = document.getElementById('saveNodeButton');
+			  var cancelButton = document.getElementById('cancelNodeButton');
+			  var div = document.getElementById('network-popUp');
+			  span.innerHTML = "Add Node";
+			  labelInput.value = data.label;
+			  saveButton.onclick = saveNode.bind(this, data, callback);
+			  cancelButton.onclick = clearNodePopUp.bind();
+			  div.style.display = 'block';
+		  },
+		  onEdit          : function (data, callback) {
+			  var span = document.getElementById('operation');
+			  var labelInput = document.getElementById('node-label');
+			  var saveButton = document.getElementById('saveNodeButton');
+			  var cancelButton = document.getElementById('cancelNodeButton');
+			  var div = document.getElementById('network-popUp');
+			  span.innerHTML = "Edit Node";
+			  labelInput.value = data.label;
+			  saveButton.onclick = saveNode.bind(this, data, callback);
+			  cancelButton.onclick = clearNodePopUp.bind();
+			  div.style.display = 'block';
+		  },
+		  onConnect       : function (data, callback) {
+			  data.datetime = CurentTime();
+			  data.title = "Creatre Datetime:" + data.datetime;
+			  if (data.from == data.to) {
+				  var r = confirm("Do you want to connect the node to itself?");
+				  if (r == true) {
+					  callback(data);
+				  }
+			  }
+			  else {
+				  callback(data);
+			  }
+		  }
+	  };
+	  var network = new vis.Network(container, data, options);
+	  // add event listeners
+	  network.on('select', function (params) {
+		  if (params.nodes.length != 0)
+			  document.getElementById('selection').innerHTML = 'Selection: ' + params.nodes;
+		  else
+			  document.getElementById('selection').innerHTML = 'Selection: ' + params.edges;
+	  });
+	  network.on('doubleClick', function (params) {
+		  if (params.edges.length > 0 && params.nodes.length == 0) {
+			  var e = edges.get(params)[0];
+			  var span = document.getElementById('edge_operation');
+			  var labelInput = document.getElementById('edge-label');
+			  var saveButton = document.getElementById('saveEdgeButton');
+			  var cancelButton = document.getElementById('cancelEdgeButton');
+			  var div = document.getElementById('edge_edit');
+			  span.innerHTML = "Edit Edge";
+			  if (data.label != null)
+				  labelInput.value = data.label;
+			  saveButton.onclick = saveEdge.bind(this, e);
+			  cancelButton.onclick = clearEdgePopUp.bind();
+			  div.style.display = 'block';
+		  }
+	  });
+
+	  network.on("resize", function (params) {
+		  console.log(params.width, params.height)
+	  });
+
+	  function clearNodePopUp() {
+		  var saveButton = document.getElementById('saveNodeButton');
+		  var cancelButton = document.getElementById('cancelNodeButton');
+		  saveButton.onclick = null;
+		  cancelButton.onclick = null;
+		  var div = document.getElementById('network-popUp');
+		  div.style.display = 'none';
+	  }
+	  function clearEdgePopUp() {
+		  var saveButton = document.getElementById('saveEdgeButton');
+		  var cancelButton = document.getElementById('cancelEdgeButton');
+		  saveButton.onclick = null;
+		  cancelButton.onclick = null;
+		  var div = document.getElementById('edge_edit');
+		  div.style.display = 'none';
+	  }
+
+	  function saveNode(data, callback) {
+		  data.label = document.getElementById('node-label').value;
+		  data.title_main = document.getElementById('node-title').value;
+		  data.datetime = CurentTime();
+		  if (data.title_main != "")
+			  data.title = data.title_main + "<br/>Creatre Datetime:" + data.datetime;
+		  else data.title = "Creatre Datetime:" + data.datetime;
+		  clearNodePopUp();
+		  callback(data);
+
+	  }
+	  function saveEdge(data) {
+		  var labelInput = document.getElementById('edge-label');
+		  var titleInput = document.getElementById('edge-title');
+		  var div = document.getElementById('edge_edit');
+		  data.label = document.getElementById('edge-label').value;
+		  data.title_main = document.getElementById('edge-title').value;
+		  data.datetime = CurentTime();
+		  if (data.title_main != "")
+			  data.title = data.title_main + "<br/>Creatre Datetime:" + data.datetime;
+		  else data.title = "Creatre Datetime:" + data.datetime;
+		  edges.update(data);
+		  console.log(data);
+		  clearEdgePopUp();
+	  }
+	  function CurentTime() {
+		  var now = new Date();
+		  var year = now.getFullYear();       //年
+		  var month = now.getMonth() + 1;     //月
+		  var day = now.getDate();            //日
+
+		  var hh = now.getHours();            //时
+		  var mm = now.getMinutes();          //分
+
+		  var clock = year + "-";
+
+		  if (month < 10)
+			  clock += "0";
+
+		  clock += month + "-";
+
+		  if (day < 10)
+			  clock += "0";
+
+		  clock += day + " ";
+
+		  if (hh < 10)
+			  clock += "0";
+
+		  clock += hh + ":";
+		  if (mm < 10) clock += '0';
+		  clock += mm;
+		  return (clock);
+	  }
+	</script>
+</body>
+</html>
