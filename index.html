@@ -55,6 +55,7 @@
 	    position : fixed;
 	    bottom   : 0px;
 	    left     : 150px;
+	    z-index  : 2;
     }
 
     #network-popUp, #edge_edit {
@@ -151,11 +152,11 @@
 			});
 			$('.upload').click(function () {
 				try {
-					var json = JSON.parse($('#json').find('textarea').text());
+					var json = JSON.parse($('#json').find('textarea').val());
 					nodes.update(json.nodes);
 					edges.update(json.edges);
 				} catch (error) {
-					console.log('error');
+					console.log(error);
 				}
 			});
 			$('.download').click(function () {
@@ -164,9 +165,9 @@
 					var json_div = $('#json').find('textarea');
 					json.nodes = nodes.get();
 					json.edges = edges.get();
-					json_div.text(JSON.stringify(json))
+					json_div.val(JSON.stringify(json))
 				} catch (error) {
-					console.log('error');
+					console.log(error);
 				}
 
 			});
@@ -208,6 +209,14 @@
 		        <tr>
 		          <td><label for="edge-title">Title</label></td>
 		          <td><input id="edge-title" type="text" value=""></td>
+		        </tr>
+				<tr>
+		          <td><label for="edge-style">Style</label></td>
+		          <td>
+			          <select id="edge-style" value="">
+				          <option value="0">Normal</option>
+				          <option value="1">Arrow</option>
+			          </select>
 		        </tr>
 			</tbody>
 		</table>
@@ -296,14 +305,18 @@
 	  network.on('doubleClick', function (params) {
 		  if (params.edges.length > 0 && params.nodes.length == 0) {
 			  var e = edges.get(params)[0];
+//			  console.log(e);
 			  var span = document.getElementById('edge_operation');
 			  var labelInput = document.getElementById('edge-label');
+			  var styleInput = document.getElementById('edge-style');
 			  var saveButton = document.getElementById('saveEdgeButton');
 			  var cancelButton = document.getElementById('cancelEdgeButton');
 			  var div = document.getElementById('edge_edit');
 			  span.innerHTML = "Edit Edge";
-			  if (data.label != null)
-				  labelInput.value = data.label;
+			  if ((Boolean)(e.label))
+				  labelInput.value = e.label;
+			  if((Boolean)(e.styleId))
+				  styleInput.value = e.styleId;
 			  saveButton.onclick = saveEdge.bind(this, e);
 			  cancelButton.onclick = clearEdgePopUp.bind();
 			  div.style.display = 'block';
@@ -343,9 +356,9 @@
 
 	  }
 	  function saveEdge(data) {
-		  var labelInput = document.getElementById('edge-label');
-		  var titleInput = document.getElementById('edge-title');
-		  var div = document.getElementById('edge_edit');
+		  data.styleId = document.getElementById('edge-style').value;
+		  if(data.styleId==1) data.style = 'arrow';
+		  else data.style='';
 		  data.label = document.getElementById('edge-label').value;
 		  data.title_main = document.getElementById('edge-title').value;
 		  data.datetime = CurentTime();
