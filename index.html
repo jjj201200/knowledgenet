@@ -168,9 +168,10 @@
 						url:'request.php',
 						method:'post',
 						async:true,
-						data: "method=upload&data="+json_div.val(),
+						data: "method=upload&data="+json_div.val()+"&password="+prompt("请输入密码！"),
 						success:function(data){
-							if(!data)
+							console.log(data);
+							if(data==0)
 							alert('上传成功！');
 						},
 						error:function(){

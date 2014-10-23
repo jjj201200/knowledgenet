@@ -8,9 +8,9 @@
 	if (isset($_POST['method']) && $_POST['method'] == 'download') {
 		echo file_get_contents ('net.json');
 	}
-	if (isset($_POST['method']) && $_POST['method'] == 'upload'&&$_POST['data']!='') {
+	if (isset($_POST['method']) && $_POST['method'] == 'upload'&&$_POST['data']!=''&&isset($_POST['password'])) {
 		$json_file = fopen ('net.json' , "w");
-		if (fwrite ($json_file, $_POST['data'])){
+		if( $_POST['password']=='0037'&&fwrite ($json_file, $_POST['data'])){
 			echo 0;
 		}else echo 1;
 	}
