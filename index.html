@@ -100,9 +100,11 @@
 	    left     : 0;
 	    width    : 100%;
     }
-    #graph_generateOptions,#graph_toggleSmooth{
-	    display: none;
+
+    #graph_generateOptions, #graph_toggleSmooth {
+	    display : none;
     }
+
     .PhysicsConfiguration {
 	    position         : absolute;
 	    background-color : #fff;
@@ -134,7 +136,7 @@
 					var json = JSON.parse($('#json').find('textarea').val());
 					nodes.update(json.nodes);
 					edges.update(json.edges);
-					network.constants=$.extend(true,{},network.constants,json.options);
+					network.constants = $.extend(true, {}, network.constants, json.options);
 					network._loadPhysicsSystem();
 				} catch (error) {
 					console.log(error);
@@ -160,40 +162,40 @@
 					json_div.addClass('show');
 				}
 			});
-			$('.upload').click(function(){
+			$('.upload').click(function () {
 				$('.export').click();
 				var json_div = $('#json').find('textarea');
-				if(json_div.val()!=""&&confirm('是否上传？')){
+				if (json_div.val() != "" && confirm('是否上传？')) {
 					$.ajax({
-						url:'request.php',
-						method:'post',
-						async:true,
-						data: "method=upload&data="+json_div.val()+"&password="+prompt("请输入密码！"),
-						success:function(data){
+						url    : 'request.php',
+						method : 'post',
+						async  : true,
+						data   : "method=upload&data=" + json_div.val() + "&password=" + prompt("请输入密码！"),
+						success: function (data) {
 							console.log(data);
-							if(data==0)
-							alert('上传成功！');
+							if (data == 0)
+								alert('上传成功！');
 						},
-						error:function(){
+						error  : function () {
 
 						}
 					});
 				}
 			});
-			$('.download').click(function(){
+			$('.download').click(function () {
 				var json_div = $('#json').find('textarea');
-				if(confirm('是否下载最新数据？')){
+				if (confirm('是否下载最新数据？')) {
 					$.ajax({
-						url:'request.php',
-						method:'post',
-						async:true,
-						data: "method=download",
-						success:function(data){
+						url    : 'request.php',
+						method : 'post',
+						async  : true,
+						data   : "method=download",
+						success: function (data) {
 							json_div.val(data);
-							alert('下载成功！');
+							//							alert('下载成功！');
 							$('.import').click();
 						},
-						error:function(){
+						error  : function () {
 
 						}
 					});
@@ -220,13 +222,19 @@
 					<input id="node-title" value="">
 				</td>
 			</tr>
+			<tr>
+				<td>Size</td>
+				<td>
+					<input id="node-value" value="">
+				</td>
+			</tr>
 			</tbody>
 		</table>
 		<input type="button" value="save" id="saveNodeButton">
 		<input type="button" value="cancel" id="cancelNodeButton">
 	</div>
 	<div id="edge_edit" style="display: none;">
-		<span id="edge_operation">Add Node</span>
+		<span id="edge_operation">Edit Edge</span>
 		<br>
 		<table style="margin:auto;">
 			<tbody>
@@ -291,25 +299,36 @@
 		  onAdd           : function (data, callback) {
 			  var span = document.getElementById('operation');
 			  var labelInput = document.getElementById('node-label');
+			  var valueInput = document.getElementById('node-value');
 			  var saveButton = document.getElementById('saveNodeButton');
 			  var cancelButton = document.getElementById('cancelNodeButton');
 			  var div = document.getElementById('network-popUp');
 
 			  span.innerHTML = "Add Node";
 			  labelInput.value = '';
+			  if ((Boolean)(data.value))
+				  valueInput.value = data.value;
+			  else valueInput.value = '';
 			  saveButton.onclick = saveNode.bind(this, data, callback);
 			  cancelButton.onclick = clearNodePopUp.bind();
 			  div.style.display = 'block';
 			  labelInput.focus();
 		  },
 		  onEdit          : function (data, callback) {
+			  data = nodes.get(data.id);
+			  console.log(data);
 			  var span = document.getElementById('operation');
 			  var labelInput = document.getElementById('node-label');
+			  var valueInput = document.getElementById('node-value');
 			  var saveButton = document.getElementById('saveNodeButton');
 			  var cancelButton = document.getElementById('cancelNodeButton');
 			  var div = document.getElementById('network-popUp');
 			  span.innerHTML = "Edit Node";
 			  labelInput.value = data.label;
+			  console.log(data.value);
+			  if ((Boolean)(data.value))
+				  valueInput.value = data.value;
+			  else valueInput.value = '';
 			  saveButton.onclick = saveNode.bind(this, data, callback);
 			  cancelButton.onclick = clearNodePopUp.bind();
 			  div.style.display = 'block';
@@ -340,7 +359,7 @@
 	  network.on('doubleClick', function (params) {
 		  if (params.edges.length > 0 && params.nodes.length == 0) {
 			  var e = edges.get(params.edges[0]);
-//			  			  console.log(edges.get(params));
+			  //			  			  console.log(edges.get(params));
 			  var span = document.getElementById('edge_operation');
 			  var labelInput = document.getElementById('edge-label');
 			  var styleInput = document.getElementById('edge-style');
@@ -350,7 +369,7 @@
 			  span.innerHTML = "Edit Edge";
 			  if ((Boolean)(e.label))
 				  labelInput.value = e.label;
-			  else labelInput.value='';
+			  else labelInput.value = '';
 			  if ((Boolean)(e.styleId))
 				  styleInput.value = e.styleId;
 			  else styleInput.value = 0;
@@ -385,13 +404,23 @@
 	  function saveNode(data, callback) {
 		  data.label = document.getElementById('node-label').value;
 		  data.title_main = document.getElementById('node-title').value;
-		  data.datetime = CurentTime();
-		  if (data.title_main != "")
-			  data.title = data.title_main + "<br/>Creatre Datetime:" + data.datetime;
-		  else data.title = "Creatre Datetime:" + data.datetime;
-		  clearNodePopUp();
-		  callback(data);
 
+		  data.datetime = 'Creatre Datetime:' + CurentTime();
+
+		  if (data.title_main=='') {
+			  delete data.title_main;
+		  } else data.title =  data.title_main+'<br/>';
+
+		  value = document.getElementById('node-value').value;
+		  if (value == '' || isNaN(value))
+			  delete data.value;
+		  else {
+			  data.value = value;
+		  }
+		  data.title += data.datetime;
+				  clearNodePopUp();
+		  console.log(data);
+		  callback(data);
 	  }
 	  function saveEdge(data) {
 		  data.styleId = document.getElementById('edge-style').value;
@@ -404,7 +433,7 @@
 			  data.title = data.title_main + "<br/>Creatre Datetime:" + data.datetime;
 		  else data.title = "Creatre Datetime:" + data.datetime;
 		  edges.update(data);
-//		  console.log(data);
+		  //		  console.log(data);
 		  clearEdgePopUp();
 	  }
 	  function CurentTime() {
