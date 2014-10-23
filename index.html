@@ -100,48 +100,27 @@
 	    left     : 0;
 	    width    : 100%;
     }
+    #graph_generateOptions,#graph_toggleSmooth{
+	    display: none;
+    }
+    .PhysicsConfiguration {
+	    position         : absolute;
+	    background-color : #fff;
+	    z-index          : 2;
+	    padding          : 10px;
+	    border           : 1px solid gray;
+	    margin           : 10px;
+	    right            : 0px;
+	    display          : none;
+    }
+
+    .PhysicsConfiguration.show {
+	    display : block;
+    }
+
   </style>
 	<script>
 		$(document).ready(function () {
-			// attach actions to the edge buttons
-			$('#edge-add').click(function () {
-				try {
-					edges.add({
-						id   : edges_counter,
-						from : $('#edge-from').val(),
-						to   : $('#edge-to').val(),
-						label: $('#edge-label').val(),
-						title: "ID:" + edges_counter
-					});
-					++edges_counter;
-				}
-				catch (err) {
-					++edges_counter;
-					$('#edge-add').click();
-				}
-			});
-			$('#edge-update').click(function () {
-				try {
-					edges.update({
-						id  : edges_counter,
-						from: $('#edge-from').val(),
-						to  : $('#edge-to').val()
-					});
-					++edges_counter;
-				}
-				catch (err) {
-					alert(err);
-				}
-			});
-			$('#edge-remove').click(function () {
-				try {
-					var id = $('#edge-id').val();
-					edges.remove(id);
-				}
-				catch (err) {
-					alert(err);
-				}
-			});
 			$('.window').click(function () {
 				var json_div = $('#json');
 				if (json_div.hasClass('show')) {
@@ -150,26 +129,74 @@
 					json_div.addClass('show');
 				}
 			});
-			$('.upload').click(function () {
+			$('.import').click(function () {
 				try {
 					var json = JSON.parse($('#json').find('textarea').val());
 					nodes.update(json.nodes);
 					edges.update(json.edges);
+					network.constants=$.extend(true,{},network.constants,json.options);
+					network._loadPhysicsSystem();
 				} catch (error) {
 					console.log(error);
 				}
 			});
-			$('.download').click(function () {
+			$('.export').click(function () {
 				try {
 					json = {};
 					var json_div = $('#json').find('textarea');
 					json.nodes = nodes.get();
 					json.edges = edges.get();
+					json.options = graphGenerateOptions();
 					json_div.val(JSON.stringify(json))
 				} catch (error) {
 					console.log(error);
 				}
+			});
+			$('.physics').click(function () {
+				var json_div = $('.PhysicsConfiguration');
+				if (json_div.hasClass('show')) {
+					json_div.removeClass('show');
+				} else {
+					json_div.addClass('show');
+				}
+			});
+			$('.upload').click(function(){
+				$('.export').click();
+				var json_div = $('#json').find('textarea');
+				if(json_div.val()!=""&&confirm('是否上传？')){
+					$.ajax({
+						url:'request.php',
+						method:'post',
+						async:true,
+						data: "method=upload&data="+json_div.val(),
+						success:function(data){
+							if(!data)
+							alert('上传成功！');
+						},
+						error:function(){
 
+						}
+					});
+				}
+			});
+			$('.download').click(function(){
+				var json_div = $('#json').find('textarea');
+				if(confirm('是否下载？')){
+					$.ajax({
+						url:'request.php',
+						method:'post',
+						async:true,
+						data: "method=download",
+						success:function(data){
+							json_div.val(data);
+							alert('下载成功！');
+							$('.import').click();
+						},
+						error:function(){
+
+						}
+					});
+				}
 			});
 		});
 	</script>
@@ -228,9 +255,12 @@
 		<textarea></textarea>
 	</div>
 	<div id="t">
-		<button class="window">Window</button>
-		<button class="upload">Upload</button>
-		<button class="download">Download</button>
+		<button class="window">JSON窗口</button>
+		<button class="import">载入数据</button>
+		<button class="export">导出JSON</button>
+		<button class="physics">物理设置</button>
+		<button class="download">下载</button>
+		<button class="upload">上传</button>
 	</div>
 	<div id="mynetwork">
 	</div>
@@ -252,6 +282,7 @@
 		  nodes           : {
 			  shape: 'dot'
 		  },
+		  configurePhysics: true,
 		  stabilize       : false,
 		  navigation      : true,
 		  keyboard        : true,
@@ -262,11 +293,13 @@
 			  var saveButton = document.getElementById('saveNodeButton');
 			  var cancelButton = document.getElementById('cancelNodeButton');
 			  var div = document.getElementById('network-popUp');
+
 			  span.innerHTML = "Add Node";
-			  labelInput.value = data.label;
+			  labelInput.value = '';
 			  saveButton.onclick = saveNode.bind(this, data, callback);
 			  cancelButton.onclick = clearNodePopUp.bind();
 			  div.style.display = 'block';
+			  labelInput.focus();
 		  },
 		  onEdit          : function (data, callback) {
 			  var span = document.getElementById('operation');
@@ -279,6 +312,7 @@
 			  saveButton.onclick = saveNode.bind(this, data, callback);
 			  cancelButton.onclick = clearNodePopUp.bind();
 			  div.style.display = 'block';
+			  labelInput.focus();
 		  },
 		  onConnect       : function (data, callback) {
 			  data.datetime = CurentTime();
@@ -304,8 +338,8 @@
 	  });
 	  network.on('doubleClick', function (params) {
 		  if (params.edges.length > 0 && params.nodes.length == 0) {
-			  var e = edges.get(params)[0];
-//			  console.log(e);
+			  var e = edges.get(params.edges[0]);
+//			  			  console.log(edges.get(params));
 			  var span = document.getElementById('edge_operation');
 			  var labelInput = document.getElementById('edge-label');
 			  var styleInput = document.getElementById('edge-style');
@@ -315,11 +349,14 @@
 			  span.innerHTML = "Edit Edge";
 			  if ((Boolean)(e.label))
 				  labelInput.value = e.label;
-			  if((Boolean)(e.styleId))
+			  else labelInput.value='';
+			  if ((Boolean)(e.styleId))
 				  styleInput.value = e.styleId;
+			  else styleInput.value = 0;
 			  saveButton.onclick = saveEdge.bind(this, e);
 			  cancelButton.onclick = clearEdgePopUp.bind();
 			  div.style.display = 'block';
+			  labelInput.focus();
 		  }
 	  });
 
@@ -357,8 +394,8 @@
 	  }
 	  function saveEdge(data) {
 		  data.styleId = document.getElementById('edge-style').value;
-		  if(data.styleId==1) data.style = 'arrow';
-		  else data.style='';
+		  if (data.styleId == 1) data.style = 'arrow';
+		  else data.style = '';
 		  data.label = document.getElementById('edge-label').value;
 		  data.title_main = document.getElementById('edge-title').value;
 		  data.datetime = CurentTime();
@@ -366,7 +403,7 @@
 			  data.title = data.title_main + "<br/>Creatre Datetime:" + data.datetime;
 		  else data.title = "Creatre Datetime:" + data.datetime;
 		  edges.update(data);
-		  console.log(data);
+//		  console.log(data);
 		  clearEdgePopUp();
 	  }
 	  function CurentTime() {
@@ -397,6 +434,89 @@
 		  if (mm < 10) clock += '0';
 		  clock += mm;
 		  return (clock);
+	  }
+	  function graphGenerateOptions() {
+		  var options = {
+			  physics: {
+				  barnesHut: {}
+			  }
+		  };
+		  var radioButton1 = document.getElementById("graph_physicsMethod1");
+		  var radioButton2 = document.getElementById("graph_physicsMethod2");
+		  if (radioButton1.checked == true) {
+			  if (network.constants.physics.barnesHut.gravitationalConstant != network.backupConstants.physics.barnesHut.gravitationalConstant) {
+				  options.physics.barnesHut.gravitationalConstant = network.constants.physics.barnesHut.gravitationalConstant;
+			  }
+			  if (network.constants.physics.centralGravity != network.backupConstants.physics.barnesHut.centralGravity) {
+				  options.physics.barnesHut.centralGravity = network.constants.physics.centralGravity;
+			  }
+			  if (network.constants.physics.springLength != network.backupConstants.physics.barnesHut.springLength) {
+				  options.physics.barnesHut.springLength = network.constants.physics.springLength;
+			  }
+			  if (network.constants.physics.springConstant != network.backupConstants.physics.barnesHut.springConstant) {
+				  options.physics.barnesHut.springConstant = network.constants.physics.springConstant;
+			  }
+			  if (network.constants.physics.damping != network.backupConstants.physics.barnesHut.damping) {
+				  options.physics.barnesHut.damping = network.constants.physics.damping;
+			  }
+			  if (network.constants.smoothCurves.enabled != network.backupConstants.smoothCurves.enabled) {
+
+				  options.smoothCurves = network.constants.smoothCurves.enabled;
+			  }
+		  }
+		  else if (radioButton2.checked == true) {
+			  options.physics.barnesHut.enabled = false;
+			  if (network.constants.physics.repulsion.nodeDistance != network.backupConstants.physics.repulsion.nodeDistance) {
+				  options.physics.barnesHut.nodeDistance = network.constants.physics.repulsion.nodeDistance;
+			  }
+			  if (network.constants.physics.centralGravity != network.backupConstants.physics.repulsion.centralGravity) {
+				  options.physics.barnesHut.centralGravity = network.constants.physics.centralGravity;
+			  }
+			  if (network.constants.physics.springLength != network.backupConstants.physics.repulsion.springLength) {
+				  options.physics.barnesHut.springLength = network.constants.physics.springLength;
+			  }
+			  if (network.constants.physics.springConstant != network.backupConstants.physics.repulsion.springConstant) {
+				  options.physics.barnesHut.springConstant = network.constants.physics.springConstant;
+			  }
+			  if (network.constants.physics.damping != network.backupConstants.physics.repulsion.damping) {
+				  options.physics.barnesHut.damping = network.constants.physics.damping;
+			  }
+			  if (network.constants.smoothCurves != network.backupConstants.smoothCurves) {
+				  options.smoothCurves = network.constants.smoothCurves;
+			  }
+		  }
+		  else {
+			  options.physics.hierarchicalRepulsion = {};
+			  if (network.constants.physics.hierarchicalRepulsion.nodeDistance != network.backupConstants.physics.hierarchicalRepulsion.nodeDistance) {
+				  options.physics.hierarchicalRepulsion.nodeDistance = network.constants.physics.hierarchicalRepulsion.nodeDistance;
+			  }
+			  if (network.constants.physics.centralGravity != network.backupConstants.physics.hierarchicalRepulsion.centralGravity) {
+				  options.physics.hierarchicalRepulsion.centralGravity = network.constants.physics.centralGravity;
+			  }
+			  if (network.constants.physics.springLength != network.backupConstants.physics.hierarchicalRepulsion.springLength) {
+				  options.physics.hierarchicalRepulsion.springLength = network.constants.physics.springLength;
+			  }
+			  if (network.constants.physics.springConstant != network.backupConstants.physics.hierarchicalRepulsion.springConstant) {
+				  options.physics.hierarchicalRepulsion.springConstant = network.constants.physics.springConstant;
+			  }
+			  if (network.constants.physics.damping != network.backupConstants.physics.hierarchicalRepulsion.damping) {
+				  options.physics.hierarchicalRepulsion.damping = network.constants.physics.damping;
+			  }
+			  options.physics.hierarchicalLayout = {};
+			  if (network.constants.hierarchicalLayout.direction != network.backupConstants.hierarchicalLayout.direction) {
+				  options.physics.hierarchicalLayout.direction = network.constants.hierarchicalLayout.direction;
+			  }
+			  if (Math.abs(network.constants.hierarchicalLayout.levelSeparation) != network.backupConstants.hierarchicalLayout.levelSeparation) {
+				  options.physics.hierarchicalLayout.levelSeparation = network.constants.hierarchicalLayout.levelSeparation;
+			  }
+			  if (network.constants.hierarchicalLayout.nodeSpacing != network.backupConstants.hierarchicalLayout.nodeSpacing) {
+				  options.physics.hierarchicalLayout.nodeSpacing = network.constants.hierarchicalLayout.nodeSpacing;
+			  }
+			  else {
+				  options.physics.hierarchicalLayout.enabled = true;
+			  }
+		  }
+		  return options;
 	  }
 	</script>
 </body>
